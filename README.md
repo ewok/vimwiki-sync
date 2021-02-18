@@ -1,3 +1,11 @@
+# Changes:
+- One commit after exit, then push
+- jobstart for git commands
+- Check internet connection 
+- Task Warrior was removed
+- NeoVim only(yet)
+
+# Original README(from: https://github.com/michal-h21/vimwiki-sync):
 # vimwiki-sync
 
 This plugin:

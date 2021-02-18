@@ -1,4 +1,16 @@
 augroup vimwiki
+  " check internet
+  if !exists('g:vimwiki_sync_connection')
+    let output =  system("ping -q -w1 -c1 github.com")
+    if v:shell_error != 0
+      echom "No connection"
+      let g:vimwiki_sync_connection = 0
+      finish
+    endif
+  else
+    finish
+  endif
+
   if !exists('g:zettel_synced')
     let g:zettel_synced = 0
   else
@@ -21,64 +33,49 @@ augroup vimwiki
   if vimwiki#vars#get_wikilocal('is_temporary_wiki') == 1
     finish
   endif
-  
 
-  " execute vim function. because vimwiki can be started from any directory,
-  " we must use pushd and popd commands to execute git commands in wiki root
-  " dir. silent is used to disable necessity to press <enter> after each
-  " command. the downside is that the command output is not displayed at all.
-  " One idea: what about running git asynchronously?
   function! s:git_action(action)
-    execute ':silent !pushd ' . g:zettel_dir . "; ". a:action . "; popd"
-    " prevent screen artifacts
-    redraw!
+      let gitjob = jobstart("git -C " . g:zettel_dir . " " . a:action, {"on_exit": "My_on_exit_action"})
   endfunction
 
-  function! My_exit_cb(channel,msg )
-    echom "Sync done"
-    execute 'checktime' 
+  " NEOVIM
+  function! My_on_exit_action(job_id, exit_code, event_type)
+    if a:exit_code != 0
+      echom "Sync error!"
+    endif
+    execute 'checktime'
   endfunction
 
-  function! My_close_cb(channel)
-    " it seems this callback is necessary to really pull the repo
+  function! My_on_exit_pull(job_id, exit_code, event_type)
+    if a:exit_code != 0
+      echom "Sync error!"
+      let g:zettel_synced = 0
+    endif
+    execute 'checktime'
   endfunction
 
-
-  " pull changes from git origin and sync task warrior for taskwiki
   " using asynchronous jobs
   " we should add some error handling
   function! s:pull_changes()
     if g:zettel_synced==0
       let g:zettel_synced = 1
-      if has("nvim")
-        let gitjob = jobstart("git -C " . g:zettel_dir . " pull origin master", {"exit_cb": "My_exit_cb", "close_cb": "My_close_cb"})
-        let taskjob = jobstart("task sync")
-      else
-        let gitjob = job_start("git -C " . g:zettel_dir . " pull origin master", {"exit_cb": "My_exit_cb", "close_cb": "My_close_cb"})
-        let taskjob = job_start("task sync")
-      endif
+      let gitjob = jobstart("git -C " . g:zettel_dir . " pull", {"on_exit": "My_on_exit_pull"})
     endif
   endfunction
 
   " push changes
-  " it seems that Vim terminates before it is executed, so it needs to be
-  " fixed
   function! s:push_changes()
-    if has("nvim")
-      let gitjob = jobstart("git -C " . g:zettel_dir . " push origin master")
-      let taskjob = jobstart("task sync")
-    else
-      let gitjob = job_start("git -C " . g:zettel_dir . " push origin master")
-      let taskjob = job_start("task sync")
-    endif
+    let gitjob = jobstart(
+          \ "git -C " . g:zettel_dir . " commit -m \"Auto commit + push. `date`\";" .
+          \ "git -C " . g:zettel_dir . " push",
+          \ {"detach": v:true})
   endfunction
 
   " sync changes at the start
   au! VimEnter * call <sid>pull_changes()
   au! BufRead * call <sid>pull_changes()
   " auto commit changes on each file change
-  au! BufWritePost * call <sid>git_action("git add .;git commit -m \"Auto commit + push. `date`\"")
+  au! BufWritePost * call <sid>git_action("add .")
   " push changes only on at the end
-  au! VimLeave * call <sid>git_action("git push origin master")
-  " au! VimLeave * call <sid>push_changes()
+  au! VimLeave * call <sid>push_changes()
 augroup END
