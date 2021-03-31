@@ -74,8 +74,11 @@ augroup vimwiki
   " sync changes at the start
   au! VimEnter * call <sid>pull_changes()
   au! BufRead * call <sid>pull_changes()
-  " auto commit changes on each file change
+
   au! BufWritePost * call <sid>git_action("add .")
-  " push changes only on at the end
+  au! BufLeave * call <sid>git_action("add .")
+  au! FocusLost * call <sid>git_action("add .")
+  au! WinLeave * call <sid>git_action("add .")
+
   au! VimLeave * call <sid>push_changes()
 augroup END
