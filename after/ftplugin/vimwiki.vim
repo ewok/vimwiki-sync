@@ -66,6 +66,7 @@ augroup vimwiki
   " push changes
   function! s:push_changes()
     let gitjob = jobstart(
+          \ "git -C " . g:zettel_dir . " add . ;" .
           \ "git -C " . g:zettel_dir . " commit -m \"Auto commit + push. `date`\";" .
           \ "git -C " . g:zettel_dir . " push",
           \ {"detach": v:true})
@@ -75,10 +76,10 @@ augroup vimwiki
   au! VimEnter * call <sid>pull_changes()
   au! BufRead * call <sid>pull_changes()
 
-  au! BufWritePost * call <sid>git_action("add .")
-  au! BufLeave * call <sid>git_action("add .")
-  au! FocusLost * call <sid>git_action("add .")
-  au! WinLeave * call <sid>git_action("add .")
+  " au! BufWritePost * call <sid>git_action("add .")
+  " au! BufLeave * call <sid>git_action("add .")
+  " au! FocusLost * call <sid>git_action("add .")
+  " au! WinLeave * call <sid>git_action("add .")
 
   au! VimLeave * call <sid>push_changes()
 augroup END
